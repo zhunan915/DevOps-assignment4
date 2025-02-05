@@ -1,0 +1,55 @@
+
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql-container
+    hostname: db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - devops-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--host=db", "--user=root", "--password=root"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+  backend:
+    build:
+      context: ./backend
+    container_name: backend-1
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_NAME=test
+    ports:
+      - "8800:8800"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - devops-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend-1
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - devops-network
+
+networks:
+  devops-network:
+    driver: bridge
